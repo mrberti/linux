@@ -1,0 +1,13 @@
+[user]
+	name = Simon Bertling
+	email = simon.bertling@gmx.de
+[core]
+	editor = vim
+[color]
+	ui = true
+[alias]
+	ci = commit
+	st = status -s
+	glog = log --graph
+[push]
+	default = matching

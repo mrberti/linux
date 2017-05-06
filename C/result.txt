@@ -1,0 +1,8 @@
+Simon-Yoga
+i = 123456789, s = 11111.111016
+123456789 calculations in 0.750000 s
+roughly 164609052 calculations per second
+simon-pi
+i = 123456789, s = 11111.111016
+123456789 calculations in 5.652914 s
+roughly 21839495 calculations per second
