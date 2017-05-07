@@ -149,3 +149,7 @@ fi
 #fi
 #
 #export DISPLAY
+
+if [ -z "$DISPLAY" ] ; then
+	export DISPLAY=":0.0"
+fi
