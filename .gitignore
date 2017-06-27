@@ -18,6 +18,7 @@
 !/octave
 !/html
 !/C
+!/FPGA
 *.exe
 C/*
 !/C/*.h
