@@ -48,6 +48,9 @@ architecture Behavioral of top_tb is
         btnR : in STD_LOGIC;
         btnD : in STD_LOGIC;
         
+        -- PMOD OLEDrgb
+        CS, MOSI, SCK, D_C, RES, VCCEN, PMODEN : out STD_LOGIC;        
+        
         -- LEDS
         led : out STD_LOGIC_VECTOR( 15 downto 0 );
         --7 Segment
@@ -88,17 +91,22 @@ begin
         variable loop_count : integer := 0;
     begin
         reset <= '1';
-        sw <= x"DEAD";
+        sw <= x"77FF";
         wait for 35 ns;
         reset <= '0';
         wait for 35 ns;
         sw(1) <= '1';
         
-        while loop_count < 16 loop
-            wait for 27 ns;
-            loop_count := loop_count + 1;
-            number <= std_logic_vector(to_unsigned(loop_count, number'length));
-        end loop;
+        wait for 35 ns;
+        sw(15 downto 8) <= x"DE";
+        wait for 35 ns;
+        btnR <= '1'; 
+        
+        --while loop_count < 16 loop
+        --    wait for 27 ns;
+        --    loop_count := loop_count + 1;
+        --    number <= std_logic_vector(to_unsigned(loop_count, number'length));
+        --end loop;
         
         wait;
     end process;
