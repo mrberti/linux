@@ -19,6 +19,7 @@
 !/html
 !/C
 !/FPGA
+!/arduino
 *.exe
 C/*
 !/C/*.h
