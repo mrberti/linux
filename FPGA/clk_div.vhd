@@ -33,8 +33,8 @@ USE IEEE.NUMERIC_STD.ALL;
 
 entity clk_div is
     GENERIC (
-        F_clk_in : integer := 50000000;
-        F_clk_out : integer := 25000000;
+        F_clk_in : integer := 100000000;
+        F_clk_out : integer := 1;
         N_counter_bitsize : integer := 32
     );
     PORT ( 

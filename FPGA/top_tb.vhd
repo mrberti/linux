@@ -24,7 +24,7 @@ use IEEE.STD_LOGIC_1164.ALL;
 
 -- Uncomment the following library declaration if using
 -- arithmetic functions with Signed or Unsigned values
---use IEEE.NUMERIC_STD.ALL;
+use IEEE.NUMERIC_STD.ALL;
 
 -- Uncomment the following library declaration if instantiating
 -- any Xilinx leaf cells in this code.
@@ -36,34 +36,70 @@ end top_tb;
 
 architecture Behavioral of top_tb is
 
-    component top 
-    Port ( 
+    component top
+    Port (
         clk : in STD_LOGIC;
-        reset : in STD_LOGIC;
-        led_status : out STD_LOGIC
+        -- switches
+        sw : in STD_LOGIC_VECTOR( 15 downto 0 );
+        -- buttons
+        btnC : in STD_LOGIC;
+        btnU : in STD_LOGIC;
+        btnL : in STD_LOGIC;
+        btnR : in STD_LOGIC;
+        btnD : in STD_LOGIC;
+        
+        -- LEDS
+        led : out STD_LOGIC_VECTOR( 15 downto 0 );
+        --7 Segment
+        seg : out STD_LOGIC_VECTOR( 6 downto 0 );
+        dp : out STD_LOGIC;
+        an : out STD_LOGIC_VECTOR( 3 downto 0 )
         );
-    end component;
+end component;
+    
+    signal sw : std_logic_vector ( 15 downto 0 );
+    --signal led : std_logic_vector ( 15 downto 0 );
+    --signal seg : std_logic_vector ( 6 downto 0 );
+    --signal an : std_logic_vector ( 15 downto 0 );
+    
+    signal btnC, btnU, btnL, btnR, btnD : std_logic := '0';
     
     signal clk : std_logic := '0';
-    signal reset : std_logic := '0';
-    signal led_status : std_logic;
+    
+    alias reset : std_logic is btnC;    
+    alias number : std_logic_vector (7 downto 0) is sw(15 downto 8);
 
 begin
     
     top_DUT : top
     port map(
         clk => clk,
-        reset => reset,
-        led_status => led_status
+        sw => sw,
+        btnC => btnC,
+        btnU => btnU,
+        btnL => btnL,
+        btnR => btnR,
+        btnD => btnD              
     );
     
-    clk <= not clk after 10 ns;
-    
+    clk <= not clk after 5 ns;
+        
     stimulus : process
+        variable loop_count : integer := 0;
     begin
         reset <= '1';
+        sw <= x"DEAD";
         wait for 35 ns;
         reset <= '0';
+        wait for 35 ns;
+        sw(1) <= '1';
+        
+        while loop_count < 16 loop
+            wait for 27 ns;
+            loop_count := loop_count + 1;
+            number <= std_logic_vector(to_unsigned(loop_count, number'length));
+        end loop;
+        
         wait;
     end process;
 
