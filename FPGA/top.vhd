@@ -44,7 +44,11 @@ entity top is
         btnD : in STD_LOGIC;
         
         -- PMOD OLEDrgb
-        CS, MOSI, SCK, D_C, RES, VCCEN, PMODEN : out STD_LOGIC;        
+        CS, MOSI, SCK, D_C, RES, VCCEN, PMODEN : out STD_LOGIC; 
+        
+        -- RS232
+        RsRx : in STD_LOGIC;
+        RsTx : out STD_LOGIC;       
         
         -- LEDS
         led : out STD_LOGIC_VECTOR( 15 downto 0 );
@@ -70,7 +74,7 @@ architecture Behavioral of top is
     alias drive_high : std_logic is sw(0);
     
     -- buttons
-    alias reset : STD_LOGIC is btnC;
+    alias reset_external : STD_LOGIC is btnC;
     
     -- LEDs
     alias led_blinky : STD_LOGIC is led(0);
@@ -80,6 +84,11 @@ architecture Behavioral of top is
     ----------------------------------------------------------
     signal number1, number2, number3, number4 : std_logic_vector(7 downto 0);
     signal dp1, dp2, dp3, dp4 : STD_LOGIC;
+    signal busy : STD_LOGIC;
+    signal data_rx : STD_LOGIC_VECTOR(7 downto 0);
+    
+    -- global reset signal
+    signal reset: std_logic := '1';
 
     ----------------------------------------------------------
     -- COMPONENT DESCRIPTIONS
@@ -159,6 +168,37 @@ architecture Behavioral of top is
              );
     end component;
 
+    component serial 
+        generic (
+            F_clk_in  : integer := 100000000; 
+            F_baud    : integer :=    256000;
+            pol_idle  : std_logic := '1'; -- state of the idle pin
+            N_data_bits : integer range 1 to 9 := 8;
+            N_stop_bits : integer range 0 to 2 := 1;
+            N_parity : integer := 0 -- no implementation yet 
+        );
+        Port ( 
+            clk : in STD_LOGIC;
+            reset : in std_logic;
+            
+            data_tx : in std_logic_vector(N_data_bits-1 downto 0);
+            data_rx : out std_logic_vector(N_data_bits-1 downto 0);
+            
+            kickout : in std_logic;
+            busy : out std_logic;
+            rx_valid : out std_logic;
+            
+            -- These flags are indicating a failure during transmission
+            -- the transceiver needs to be reset then
+            tx_fail : out std_logic;
+            rx_fail : out std_logic;
+            
+            -- physical pins
+            rx : in std_logic; -- async receive pin
+            tx : out std_logic
+            );
+    end component;
+    
 begin
     
     ----------------------------------------------------------
@@ -222,6 +262,12 @@ begin
         miso =>  '1'
     );
     
+    rs232_serial : serial
+    generic map ( F_baud => 256000, N_data_bits => 8, pol_idle => '1', N_stop_bits => 1 )
+    port map (
+        clk => clk, reset => reset, data_tx => sw(15 downto 8), data_rx => data_rx, kickout => btnU, busy => busy, rx => RsRx, tx => RsTx, rx_valid => led(6)
+    );
+    
     ----------------------------------------------------------
     -- BEHAVIOUR CODE
     ----------------------------------------------------------
@@ -234,14 +280,39 @@ begin
     
     number1(7 downto 4) <= "0000";
     number1(3 downto 0) <= sw(15 downto 12);
+    
     number2(7 downto 4) <= "0000";
     number2(3 downto 0) <= sw(11 downto 8);
-    number3 <= x"FF";
-    number4 <= x"FF";
+    
+    number3(7 downto 4) <= "0000";
+    number3(3 downto 0) <= data_rx(7 downto 4);
+    
+    number4(7 downto 4) <= "0000";
+    number4(3 downto 0) <= data_rx(3 downto 0);
+    
+    led(15 downto 8) <= data_rx;
+    led(7) <= busy;
     
     dp1 <= '0';
     dp2 <= '1';
     dp3 <= '0';
-    dp4 <= '0';    
+    dp4 <= '0';
+    
+    reset_generator : process(clk, reset)
+        constant por_cycles : integer := 123;
+        variable start_cycle_counter : integer range 0 to por_cycles := 0;
+    begin
+        if reset_external = '1' then
+            reset <= '1';
+        elsif (clk'event and clk = '1') then
+            -- power on reset generator
+            if start_cycle_counter < por_cycles then
+                reset <= '1';
+                start_cycle_counter := start_cycle_counter + 1;
+            else 
+                reset <= '0'; 
+            end if;
+        end if;
+    end process;    
     
 end Behavioral;

@@ -49,7 +49,11 @@ architecture Behavioral of top_tb is
         btnD : in STD_LOGIC;
         
         -- PMOD OLEDrgb
-        CS, MOSI, SCK, D_C, RES, VCCEN, PMODEN : out STD_LOGIC;        
+        CS, MOSI, SCK, D_C, RES, VCCEN, PMODEN : out STD_LOGIC; 
+        
+        -- RS232
+        RsRx : in STD_LOGIC;
+        RsTx : out STD_LOGIC;       
         
         -- LEDS
         led : out STD_LOGIC_VECTOR( 15 downto 0 );
@@ -67,6 +71,8 @@ end component;
     
     signal btnC, btnU, btnL, btnR, btnD : std_logic := '0';
     
+    signal RsRx, RsTx: std_logic := '0';
+    
     signal clk : std_logic := '0';
     
     alias reset : std_logic is btnC;    
@@ -82,7 +88,9 @@ begin
         btnU => btnU,
         btnL => btnL,
         btnR => btnR,
-        btnD => btnD              
+        btnD => btnD,
+        RsRx => RsRx,
+        RsTx => RsTx           
     );
     
     clk <= not clk after 5 ns;
@@ -90,10 +98,10 @@ begin
     stimulus : process
         variable loop_count : integer := 0;
     begin
-        reset <= '1';
+        btnC <= '1';
         sw <= x"77FF";
         wait for 35 ns;
-        reset <= '0';
+        btnC <= '0';
         wait for 35 ns;
         sw(1) <= '1';
         
@@ -101,6 +109,7 @@ begin
         sw(15 downto 8) <= x"DE";
         wait for 35 ns;
         btnR <= '1'; 
+       
         
         --while loop_count < 16 loop
         --    wait for 27 ns;
@@ -108,7 +117,18 @@ begin
         --    number <= std_logic_vector(to_unsigned(loop_count, number'length));
         --end loop;
         
+        wait for 10 us;
+        btnC <= '1';
+        
         wait;
+    end process;
+    
+    RsRx <= RsTx;
+    
+    stimulus_rs232 : process
+    begin
+        wait for 50 ns;
+        btnU <= '1';
     end process;
 
 
