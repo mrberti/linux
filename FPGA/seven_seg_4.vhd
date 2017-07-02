@@ -32,11 +32,11 @@ use IEEE.NUMERIC_STD.ALL;
 --use UNISIM.VComponents.all;
 
 entity seven_seg_4 is
-    Generic (
+    generic (
         F_clk : integer := 100000000; -- Hz
         F_cycle : integer := 10000000 -- Hz
     );
-    Port ( 
+    port ( 
         clk : in std_logic;
         enable : in std_logic;
         reset : in std_logic;
@@ -61,52 +61,39 @@ entity seven_seg_4 is
        );
 end seven_seg_4;
 
-architecture basys of seven_seg_4 is
-
-    component seven_seg
-        Port ( 
-            clk : in std_logic;
-            reset : in std_logic;
-            enable : in std_logic;
-            number : in std_logic_vector (7 downto 0);
-            dp : in std_logic;
-            drive_high : in std_logic;
-               
-            -- output signals to drive the 7 segment display
-            -- LSB := A
-            segment_drive : out std_logic_vector (6 downto 0);
-            dp_drive : out std_logic
-         );
-    end component;
+architecture rtl of seven_seg_4 is
     
-    signal clk_counter : unsigned(30 downto 0);
+    constant N_count_max : integer := F_clk / F_cycle - 1;
+    
+    signal clk_counter : integer range 0 to N_count_max;
     signal counter_overflow : std_logic;
     
     signal segment_drive1, segment_drive2, segment_drive3, segment_drive4 : std_logic_vector ( 6 downto 0 );
     signal dp_drive1, dp_drive2, dp_drive3, dp_drive4 : std_logic;
-    constant N_count_max : integer := F_clk / F_cycle - 1;
+    
     
     signal an_drive_d : std_logic_vector( 3 downto 0 );
         
 begin
 
     -- instatiate 4 seven segment digits
-    digit1 : seven_seg port map( clk=>clk, reset=>reset, enable=>enable,number=>number1,dp=>dp1,drive_high=>drive_high,segment_drive=>segment_drive1,dp_drive=>dp_drive1);
-    digit2 : seven_seg port map( clk=>clk, reset=>reset, enable=>enable,number=>number2,dp=>dp2,drive_high=>drive_high,segment_drive=>segment_drive2,dp_drive=>dp_drive2);
-    digit3 : seven_seg port map( clk=>clk, reset=>reset, enable=>enable,number=>number3,dp=>dp3,drive_high=>drive_high,segment_drive=>segment_drive3,dp_drive=>dp_drive3);
-    digit4 : seven_seg port map( clk=>clk, reset=>reset, enable=>enable,number=>number4,dp=>dp4,drive_high=>drive_high,segment_drive=>segment_drive4,dp_drive=>dp_drive4);
+    digit1 : entity work.seven_seg port map( clk=>clk, reset=>reset, enable=>enable,number=>number1,dp=>dp1,drive_high=>drive_high,segment_drive=>segment_drive1,dp_drive=>dp_drive1);
+    digit2 : entity work.seven_seg port map( clk=>clk, reset=>reset, enable=>enable,number=>number2,dp=>dp2,drive_high=>drive_high,segment_drive=>segment_drive2,dp_drive=>dp_drive2);
+    digit3 : entity work.seven_seg port map( clk=>clk, reset=>reset, enable=>enable,number=>number3,dp=>dp3,drive_high=>drive_high,segment_drive=>segment_drive3,dp_drive=>dp_drive3);
+    digit4 : entity work.seven_seg port map( clk=>clk, reset=>reset, enable=>enable,number=>number4,dp=>dp4,drive_high=>drive_high,segment_drive=>segment_drive4,dp_drive=>dp_drive4);
     
     counter : process(clk)
     begin
         if reset = '1' then
-            clk_counter <= (OTHERS => '0');
+            clk_counter <= 0;
+            counter_overflow <= '0';
         elsif clk'event and clk = '1' then
             if clk_counter < N_count_max then
                 counter_overflow <= '0';
                 clk_counter <= clk_counter + 1;
             else
                 counter_overflow <= '1';
-                clk_counter <= (OTHERS => '0');
+                clk_counter <= 0;
             end if;
         end if; 
     end process;
@@ -157,4 +144,4 @@ begin
         
     end process;
 
-end basys;
+end rtl;

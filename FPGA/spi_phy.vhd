@@ -63,7 +63,7 @@ entity spi_phy is
             
 end spi_phy;
 
-architecture Behavioral of spi_phy is
+architecture rtl of spi_phy is
 
     TYPE spi_state_type IS (SPI_IDLE, SPI_SENDING, SPI_FINISH);
 
@@ -153,4 +153,4 @@ begin
         END IF;
     END PROCESS;        
 
-END Behavioral;
+END rtl;

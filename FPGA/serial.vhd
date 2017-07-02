@@ -41,7 +41,7 @@ entity serial is
         N_parity : integer := 0 -- no implementation yet 
     );
     Port ( 
-        clk : in STD_LOGIC;
+        clk : in std_logic;
         reset : in std_logic;
         
         data_tx : in std_logic_vector(N_data_bits-1 downto 0);
@@ -60,15 +60,16 @@ entity serial is
         rx : in std_logic; -- async receive pin
         tx : out std_logic
         );
+        
 end serial;
 
-architecture Behavioral of serial is
+architecture rtl of serial is
 
     type state_rx_type is (RX_IDLE, RX_START, RX_SAMPLE, RX_STOP, RX_FAILED);
     type state_tx_type is (TX_IDLE, TX_START, TX_SEND, TX_STOP1, TX_STOP2, TX_FAILED);
     
     constant N_counter_max : integer := F_clk_in / F_baud - 1;
-
+        
     signal rx_d : std_logic_vector(1 downto 0);
     signal data_tx_d,data_rx_d  : std_logic_vector(N_data_bits-1 downto 0);
     
@@ -79,7 +80,7 @@ architecture Behavioral of serial is
     signal state_tx : state_tx_type;
     
 begin
-
+    
     clk_counter_tx_proc : process (clk)
     begin
         if clk'event and clk = '1' then
@@ -254,4 +255,4 @@ begin
     data_rx <= data_rx_d;
 
 
-end Behavioral;
+end rtl;

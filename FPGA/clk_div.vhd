@@ -32,36 +32,34 @@ USE IEEE.NUMERIC_STD.ALL;
 --use UNISIM.VComponents.all;
 
 entity clk_div is
-    GENERIC (
-        F_clk_in : integer := 100000000;
-        F_clk_out : integer := 1;
-        N_counter_bitsize : integer := 32
+    generic (
+        F_clk_in : integer := 100000000; -- Hz
+        F_clk_out : integer := 1 -- Hz
     );
-    PORT ( 
+    port ( 
         clk : in STD_LOGIC;
         reset : in STD_LOGIC;
         clk_out : out STD_LOGIC
     );
 end clk_div;
 
-architecture Behavioral of clk_div is
+architecture rtl of clk_div is
 
-    constant N_div : integer := F_clk_in / F_clk_out;
+    constant N_counter_max : integer := F_clk_in / F_clk_out - 1;
     
-    signal CLK_COUNT : unsigned( N_counter_bitsize - 1 downto 0) := (OTHERS => '0');
+    signal clk_counter : integer range 0 to N_counter_max := 0;
 
 begin
 
     counting : process (clk, reset)
     begin
         if (reset = '1') then
-            --clk_out <= '0';
-            CLK_COUNT <= (OTHERS => '0');        
+            clk_counter <= 0;        
         elsif (clk'event and clk = '1') then
-            if clk_count < N_div - 1 then
-                clk_count <= clk_count + 1;
+            if clk_counter < N_counter_max then
+                clk_counter <= clk_counter + 1;
             else
-                clk_count <= (OTHERS => '0');
+                clk_counter <= 0;
             end if;
         end if;
     end process;
@@ -71,12 +69,12 @@ begin
         if reset = '1' then
             clk_out <= '1';
         elsif clk'event and clk = '1' then
-            if (CLK_COUNT = N_div/2-1) then
+            if (clk_counter = N_counter_max/2) then
                 clk_out <= '1';
-            elsif (CLK_COUNT = N_DIV-1) then
+            elsif (clk_counter = N_counter_max) then
                 clk_out <= '0';
             end if;
         end if;
     end process; 
 
-end Behavioral;
+end rtl;

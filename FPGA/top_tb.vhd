@@ -35,34 +35,6 @@ entity top_tb is
 end top_tb;
 
 architecture Behavioral of top_tb is
-
-    component top
-    Port (
-        clk : in STD_LOGIC;
-        -- switches
-        sw : in STD_LOGIC_VECTOR( 15 downto 0 );
-        -- buttons
-        btnC : in STD_LOGIC;
-        btnU : in STD_LOGIC;
-        btnL : in STD_LOGIC;
-        btnR : in STD_LOGIC;
-        btnD : in STD_LOGIC;
-        
-        -- PMOD OLEDrgb
-        CS, MOSI, SCK, D_C, RES, VCCEN, PMODEN : out STD_LOGIC; 
-        
-        -- RS232
-        RsRx : in STD_LOGIC;
-        RsTx : out STD_LOGIC;       
-        
-        -- LEDS
-        led : out STD_LOGIC_VECTOR( 15 downto 0 );
-        --7 Segment
-        seg : out STD_LOGIC_VECTOR( 6 downto 0 );
-        dp : out STD_LOGIC;
-        an : out STD_LOGIC_VECTOR( 3 downto 0 )
-        );
-end component;
     
     signal sw : std_logic_vector ( 15 downto 0 );
     --signal led : std_logic_vector ( 15 downto 0 );
@@ -80,7 +52,7 @@ end component;
 
 begin
     
-    top_DUT : top
+    top_DUT : entity work.top(rtl)
     port map(
         clk => clk,
         sw => sw,
@@ -117,8 +89,10 @@ begin
         --    number <= std_logic_vector(to_unsigned(loop_count, number'length));
         --end loop;
         
-        wait for 10 us;
-        btnC <= '1';
+        --wait for 10 us;
+        --btnC <= '1';
+        --wait for 100 ns;
+        --btnC <= '0';
         
         wait;
     end process;
@@ -130,6 +104,8 @@ begin
         wait for 50 ns;
         btnU <= '1';
     end process;
+    
+    
 
 
 end Behavioral;

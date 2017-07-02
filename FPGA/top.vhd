@@ -22,6 +22,9 @@
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 
+library work;
+use work.all;
+
 -- Uncomment the following library declaration if using
 -- arithmetic functions with Signed or Unsigned values
 --use IEEE.NUMERIC_STD.ALL;
@@ -59,19 +62,16 @@ entity top is
         );
 end top;
 
-architecture Behavioral of top is
+architecture rtl of top is
 
     ---
     -- mapping of external periphery to signals
     ---
     
     -- switches
-    alias number : std_logic_vector (7 downto 0) is sw(15 downto 8);
     alias segment_drive : STD_LOGIC_VECTOR(6 downto 0) is seg;
-    alias sw_an : std_logic_vector ( 3 downto 0 ) is sw(7 downto 4);
-    alias sw_dp : std_logic is sw(3);
-    alias enable_7 : STD_LOGIC is sw(1);
-    alias drive_high : std_logic is sw(0);
+    --alias enable_7 : STD_LOGIC is sw(1);
+    --alias drive_high : std_logic is sw(0);
     
     -- buttons
     alias reset_external : STD_LOGIC is btnC;
@@ -90,121 +90,12 @@ architecture Behavioral of top is
     -- global reset signal
     signal reset: std_logic := '1';
 
-    ----------------------------------------------------------
-    -- COMPONENT DESCRIPTIONS
-    ----------------------------------------------------------
-    component clk_div 
-    GENERIC (
-        F_clk_in : integer := 100000000;
-        F_clk_out : integer := 1;
-        N_counter_bitsize : integer := 32
-    );
-    PORT ( clk : in STD_LOGIC;
-           reset : in STD_LOGIC;
-           clk_out : out STD_LOGIC
-    );
-    end component;
-    
-    component seven_seg_4
-    Generic (
-        F_clk : integer := 100000000; -- Hz
-        F_cycle : integer := 10000000 -- Hz
-    );
-    Port ( 
-        clk : in std_logic;
-        enable : in std_logic;
-        reset : in std_logic;
-        
-        drive_high : in std_logic;
-        
-        number1 : in std_logic_vector(7 downto 0);
-        number2 : in std_logic_vector(7 downto 0);
-        number3 : in std_logic_vector(7 downto 0);
-        number4 : in std_logic_vector(7 downto 0);
-        
-        dp1 : in std_logic;
-        dp2 : in std_logic;
-        dp3 : in std_logic;
-        dp4 : in std_logic;     
-        
-        segment_drive : out std_logic_vector (6 downto 0);
-        dp_drive : out std_logic;
-        
-        -- an_drive will be used to multiplex the segments, only one bit may be active!
-        an_drive : out std_logic_vector(3 downto 0)
-       );
-    end component;
-    
-    component spi_phy
-        Generic ( 
-                N_slaves : natural := 1;
-                F_clk_in : natural := 100;
-                F_clk_out : natural := 25
-                );
-        Port ( 
-                -- GENERAL SIGNALS
-                clk_in : in STD_LOGIC;
-                reset : in STD_LOGIC := '0';
-                
-                -- SPI MASTER CONTROL SIGNALS
-                kickout : in STD_LOGIC := '0'; -- Lathes in data input signals and begins SPI transmit, active high
-                                       
-                -- DATA INPUT SIGNALS
-                data_send : in STD_LOGIC_VECTOR (7 downto 0);
-                slave_addr : in STD_LOGIC_VECTOR ( N_slaves - 1 downto 0 ) := (OTHERS => '0');
-               
-                -- DATA OUTPUT SIGNALS
-                data_rec : out STD_LOGIC_VECTOR (7 downto 0);
-               
-                -- STATUS OUTPUT SIGNALS
-                data_rec_valid : out STD_LOGIC;
-                busy : out STD_LOGIC;
-               
-                -- SPI PINS
-                clk_out : out STD_LOGIC;
-                cs : out STD_LOGIC_VECTOR (N_slaves-1 downto 0);
-                mosi : out STD_LOGIC;
-                miso : in STD_LOGIC := '1'
-             );
-    end component;
-
-    component serial 
-        generic (
-            F_clk_in  : integer := 100000000; 
-            F_baud    : integer :=    256000;
-            pol_idle  : std_logic := '1'; -- state of the idle pin
-            N_data_bits : integer range 1 to 9 := 8;
-            N_stop_bits : integer range 0 to 2 := 1;
-            N_parity : integer := 0 -- no implementation yet 
-        );
-        Port ( 
-            clk : in STD_LOGIC;
-            reset : in std_logic;
-            
-            data_tx : in std_logic_vector(N_data_bits-1 downto 0);
-            data_rx : out std_logic_vector(N_data_bits-1 downto 0);
-            
-            kickout : in std_logic;
-            busy : out std_logic;
-            rx_valid : out std_logic;
-            
-            -- These flags are indicating a failure during transmission
-            -- the transceiver needs to be reset then
-            tx_fail : out std_logic;
-            rx_fail : out std_logic;
-            
-            -- physical pins
-            rx : in std_logic; -- async receive pin
-            tx : out std_logic
-            );
-    end component;
-    
 begin
     
     ----------------------------------------------------------
     -- COMPONENT INSTATIONATIONS
     ----------------------------------------------------------
-    blinky : clk_div
+    blinky : entity clk_div
     generic map (
         F_clk_in => 100000000,
         F_clk_out => 1
@@ -215,14 +106,14 @@ begin
         clk_out => led_blinky
     );
     
-    seven_segment : seven_seg_4
+    seven_segment : entity seven_seg_4
     generic map(
         F_cycle => 60*4
     )
     port map (
         clk => clk,
         reset => reset,
-        enable => enable_7,
+        enable => '1',
         
         number1 => number1,
         number2 => number2,
@@ -234,14 +125,14 @@ begin
         dp3 => dp3,
         dp4 => dp4,
         
-        drive_high => drive_high,
+        drive_high => '0',
         segment_drive => segment_drive,
         dp_drive => dp,
         
         an_drive => an
     );
     
-    spi_PMOD_oled : spi_phy
+    spi_PMOD_oled : entity spi_phy
     GENERIC MAP(
         N_slaves => 1,
         F_clk_in => 100,
@@ -262,7 +153,7 @@ begin
         miso =>  '1'
     );
     
-    rs232_serial : serial
+    rs232_serial : entity work.serial
     generic map ( F_baud => 256000, N_data_bits => 8, pol_idle => '1', N_stop_bits => 1 )
     port map (
         clk => clk, reset => reset, data_tx => sw(15 downto 8), data_rx => data_rx, kickout => btnU, busy => busy, rx => RsRx, tx => RsTx, rx_valid => led(6)
@@ -315,4 +206,4 @@ begin
         end if;
     end process;    
     
-end Behavioral;
+end rtl;

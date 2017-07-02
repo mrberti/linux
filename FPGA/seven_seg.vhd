@@ -32,7 +32,7 @@ use IEEE.STD_LOGIC_1164.ALL;
 --use UNISIM.VComponents.all;
 
 entity seven_seg is
-    Port ( 
+    port ( 
         clk : in STD_LOGIC;
         reset : in STD_LOGIC;
         enable : in STD_LOGIC;
@@ -47,7 +47,7 @@ entity seven_seg is
      );
 end seven_seg;
 
-architecture Behavioral of seven_seg is
+architecture rtl of seven_seg is
     
     --signal segment_drive_d : STD_LOGIC_VECTOR (6 downto 0);
 
@@ -59,9 +59,10 @@ begin
         if reset = '1' then
             segment_drive_d := (OTHERS => not drive_high);
             segment_drive <= (OTHERS => not drive_high);
+            dp_drive <= not drive_high;
         elsif clk'event and clk = '1' then
             if enable = '1' then
-                case number is                      --GFEDCBA --ABCDEFG
+                case number is                     --"GFEDCBA"
                     when x"00" => segment_drive_d := "0111111";
                     when x"01" => segment_drive_d := "0000110";
                     when x"02" => segment_drive_d := "1011011";
@@ -91,11 +92,5 @@ begin
             end if;
         end if;
     end process;
-    
-    --if (drive_high = '0') then
-    --    segment_drive := segment_drive_d when drive_high = '1' else not segment_drive_d;
-    --else
-    --    segment_drive := segment_drive_d;
-    --end if;    
 
-end Behavioral;
+end rtl;
