@@ -112,7 +112,6 @@ begin
     )
     port map (
         clk => clk,
-        reset => reset,
         enable => '1',
         
         number1 => number1,
@@ -139,7 +138,7 @@ begin
         F_clk_out => 1
     )
     PORT MAP(
-        clk_in  => clk,
+        clk  => clk,
         reset  => reset,
         kickout  => btnR,
         data_send  => sw(15 downto 8),
@@ -147,7 +146,7 @@ begin
         --data_rec  => data_rec,
         --data_rec_valid  => data_rec_valid,
         --busy  => busy,
-        clk_out  => SCK,
+        sck  => SCK,
         cs(0)  => CS, --, OTHERS => '0'),
         mosi  => MOSI,
         miso =>  '1'
@@ -195,7 +194,7 @@ begin
     begin
         if reset_external = '1' then
             reset <= '1';
-        elsif (clk'event and clk = '1') then
+        elsif rising_edge(clk) then
             -- power on reset generator
             if start_cycle_counter < por_cycles then
                 reset <= '1';

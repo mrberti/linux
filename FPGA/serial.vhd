@@ -83,7 +83,7 @@ begin
     
     clk_counter_tx_proc : process (clk)
     begin
-        if clk'event and clk = '1' then
+        if rising_edge(clk) then
             if reset = '1' or state_tx = TX_IDLE then
                 clk_counter_tx <= 0;
                 clk_counter_tx_overflow <= '0';              
@@ -102,7 +102,7 @@ begin
     tx_state_machine : process(clk)
         variable bit_counter_tx : integer range 0 to N_data_bits;--unsigned(2 downto 0);
     begin
-        if clk'event and clk = '1' then
+        if rising_edge(clk) then
             if reset = '1' then
                 state_tx <= TX_IDLE;
                 bit_counter_tx := 0;
@@ -164,7 +164,7 @@ begin
     
     clk_counter_rx_proc : process(clk)
     begin
-        if clk'event and clk = '1' then
+        if rising_edge(clk) then
             if reset = '1' or state_rx = RX_IDLE then
                 clk_counter_rx <= 0;
                 clk_counter_rx_overflow <= '0';
@@ -188,7 +188,7 @@ begin
     
     rx_sampling : process(clk)
     begin
-        if clk'event and clk = '1' then
+        if rising_edge(clk) then
             if reset = '1' then
                 rx_d <= (OTHERS => pol_idle);
             else
@@ -200,7 +200,7 @@ begin
     rx_state_machine : process(clk)
         variable bit_counter_rx : integer range 0 to N_data_bits;
     begin
-        if clk'event and clk = '1' then
+        if rising_edge(clk) then
             if reset = '1' then
                 state_rx <= RX_IDLE;
                 rx_valid <= '0';

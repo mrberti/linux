@@ -1,6 +1,6 @@
 ----------------------------------------------------------------------------------
 -- Company: 
--- Engineer: 
+-- Engineer: Simon Bertling
 -- 
 -- Create Date: 01.07.2017 11:21:53
 -- Design Name: 
@@ -37,36 +37,6 @@ end seven_seg_4_tb;
 
 architecture Behavioral of seven_seg_4_tb is
 
-    component seven_seg_4
-    Generic (
-        F_clk : integer := 100000000; -- Hz
-        F_cycle : integer := 10000000 -- Hz
-    );
-    Port ( 
-        clk : in STD_LOGIC;
-        enable : in STD_LOGIC;
-        reset : in STD_LOGIC;
-        
-        drive_high : in STD_LOGIC;
-        
-        number1 : in std_logic_vector(7 downto 0);
-        number2 : in std_logic_vector(7 downto 0);
-        number3 : in std_logic_vector(7 downto 0);
-        number4 : in std_logic_vector(7 downto 0);
-        
-        dp1 : in std_logic;
-        dp2 : in std_logic;
-        dp3 : in std_logic;
-        dp4 : in std_logic;     
-        
-        segment_drive : out STD_LOGIC_VECTOR (6 downto 0);
-        dp_drive : out STD_LOGIC;
-        
-        -- an_drive will be used to multiplex the segments, only one bit may be active!
-        an_drive : out STD_LOGIC_VECTOR(3 downto 0)
-       );
-    end component;
-
     signal clk : std_logic := '0';
     signal reset, enable, drive_high, dp1, dp2, dp3, dp4, dp_drive : STD_LOGIC;
     signal number1, number2, number3, number4 : STD_LOGIC_VECTOR( 7 downto 0);
@@ -76,10 +46,12 @@ architecture Behavioral of seven_seg_4_tb is
     
 begin
 
-    seven_segment_4_DUT : seven_seg_4
+    seven_segment_4_DUT : entity work.seven_seg_4(compact)
+    generic map(
+        F_cycle => 10000000
+    )
     port map (
         clk => clk,
-        reset => reset,
         enable => enable,
         
         number1 => number1,
@@ -104,22 +76,17 @@ begin
     stimulus : process
         variable loop_count : integer := 0;
     begin
-        reset <= '0';
         enable <= '0';
         number1 <= "00000001";
         number2 <= "00000010";
         number3 <= "00000011";
         number4 <= "00000100";
-        drive_high <= '0';
+        drive_high <= '1';
         dp1 <= '0';
         dp2 <= '0';
         dp3 <= '1';
         dp4 <= '0';
         
-        wait for 15 ns;
-        reset <= '1';
-        wait for 15 ns;
-        reset <= '0';
         wait for 15 ns;
         enable <= '1';
         
@@ -130,6 +97,10 @@ begin
             --number1 <= std_logic_vector(to_unsigned(loop_count, number1'length));
             --number2 <= 
         end loop;
+        
+        enable <= '0';
+        wait for 100 ns;
+        enable <= '1';
         
         dp1 <= '1';
         

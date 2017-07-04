@@ -37,7 +37,7 @@ entity spi_phy is
               F_clk_out : natural := 25);
     Port ( 
             -- GENERAL SIGNALS
-            clk_in : in STD_LOGIC;
+            clk : in STD_LOGIC;
             reset : in STD_LOGIC := '0';
             
             -- SPI MASTER CONTROL SIGNALS
@@ -55,7 +55,7 @@ entity spi_phy is
             busy : out STD_LOGIC;
            
             -- SPI PINS
-            clk_out : out STD_LOGIC;
+            sck : out STD_LOGIC;
             cs : out STD_LOGIC_VECTOR (N_slaves-1 downto 0);
             mosi : out STD_LOGIC;
             miso : in STD_LOGIC := '1'
@@ -78,10 +78,10 @@ architecture rtl of spi_phy is
        
 begin
 
-    spi_state_machine : PROCESS (clk_in)
+    spi_state_machine : PROCESS (clk)
     variable cs_bit : integer;
     BEGIN
-        IF (clk_in'event AND clk_in = '1') THEN
+        IF rising_edge(clk) THEN
             IF (reset = '1') THEN
                 spi_state <= SPI_IDLE;
                 busy <= '0';
@@ -97,7 +97,7 @@ begin
                         -- set SPI pins to default state
                         mosi <= '1';
                         cs <= (OTHERS => '1');
-                        clk_out <= '1';
+                        sck <= '1';
                         -- while idling, constantly latch in data
                         data_in_latch <= data_send;
                         address_latch <= slave_addr;
@@ -115,7 +115,7 @@ begin
                         cs(cs_bit) <= '0';
                         IF clk_counter = N_clk_div/2-1 THEN -- falling SPI clock => MOSI shift
                             IF  (bit_counter < 8) THEN
-                                clk_out <= '0';
+                                sck <= '0';
                                 mosi <= data_in_latch( to_integer(bit_counter(2 downto 0)) );
                                 bit_counter <= bit_counter + 1;
                             ELSE
@@ -124,7 +124,7 @@ begin
                             END IF;
                         ELSIF (clk_counter = N_clk_div-1) THEN -- rising SPI clock => MISO sample
                             -- TODO!!
-                            clk_out <= '1';
+                            sck <= '1';
                         END IF;
                     WHEN SPI_FINISH =>
                         -- currentlz unused state
@@ -138,9 +138,9 @@ begin
         END IF;
     END PROCESS;
     
-    clock_divider : PROCESS( clk_in )
+    clock_divider : PROCESS( clk )
     BEGIN
-        IF (clk_in'event AND clk_in = '1') THEN
+        IF rising_edge(clk) THEN
             IF (reset = '1' OR spi_state = SPI_IDLE OR spi_state = SPI_FINISH) THEN
                 clk_counter <= (OTHERS => '0');
             ELSIF (spi_state = SPI_SENDING) THEN

@@ -1,6 +1,6 @@
 ----------------------------------------------------------------------------------
 -- Company: 
--- Engineer: 
+-- Engineer: Simon Bertling
 -- 
 -- Create Date: 01.07.2017 11:03:57
 -- Design Name: 
@@ -34,24 +34,24 @@ use IEEE.NUMERIC_STD.ALL;
 entity seven_seg_4 is
     generic (
         F_clk : integer := 100000000; -- Hz
-        F_cycle : integer := 10000000 -- Hz
+        F_cycle : integer := 60*4 -- Hz
     );
     port ( 
         clk : in std_logic;
-        enable : in std_logic;
-        reset : in std_logic;
+        enable : in std_logic := '1';
         
-        drive_high : in std_logic;
+        drive_high : in std_logic := '1';
         
-        number1 : in std_logic_vector(7 downto 0);
-        number2 : in std_logic_vector(7 downto 0);
-        number3 : in std_logic_vector(7 downto 0);
-        number4 : in std_logic_vector(7 downto 0);
+        --  "10000000" firt bit indicates, that decoding will directly feedthrough lower 7 bits
+        number1 : in std_logic_vector(7 downto 0) := "10000000";
+        number2 : in std_logic_vector(7 downto 0) := "10000000";
+        number3 : in std_logic_vector(7 downto 0) := "10000000";
+        number4 : in std_logic_vector(7 downto 0) := "10000000";
         
-        dp1 : in std_logic;
-        dp2 : in std_logic;
-        dp3 : in std_logic;
-        dp4 : in std_logic;     
+        dp1 : in std_logic := '0';
+        dp2 : in std_logic := '0';
+        dp3 : in std_logic := '0';
+        dp4 : in std_logic := '0';     
         
         segment_drive : out std_logic_vector (6 downto 0);
         dp_drive : out std_logic;
@@ -61,87 +61,95 @@ entity seven_seg_4 is
        );
 end seven_seg_4;
 
-architecture rtl of seven_seg_4 is
+architecture compact of seven_seg_4 is
     
     constant N_count_max : integer := F_clk / F_cycle - 1;
     
-    signal clk_counter : integer range 0 to N_count_max;
-    signal counter_overflow : std_logic;
+    signal clk_counter : integer range 0 to N_count_max := 0;
+      
+    -- only 1 actvive bit, will be rotated through while running  
+    signal an_drive_i : natural range 0 to 3 := 0;
     
-    signal segment_drive1, segment_drive2, segment_drive3, segment_drive4 : std_logic_vector ( 6 downto 0 );
-    signal dp_drive1, dp_drive2, dp_drive3, dp_drive4 : std_logic;
+    signal number : std_logic_vector(7 downto 0) := "10000000";
+    signal dp : std_logic := '0';
     
+    -- input latches
+    signal enable_d : std_logic := '0';
+    signal drive_high_d : std_logic := '0';
+    signal number1_d,  number2_d, number3_d, number4_d: std_logic_vector(7 downto 0) := "10000000";
+    signal dp1_d, dp2_d, dp3_d, dp4_d : std_logic := '0';
     
-    signal an_drive_d : std_logic_vector( 3 downto 0 );
+    -- output latch
+    signal an_drive_d : std_logic_vector(3 downto 0);
         
 begin
 
-    -- instatiate 4 seven segment digits
-    digit1 : entity work.seven_seg port map( clk=>clk, reset=>reset, enable=>enable,number=>number1,dp=>dp1,drive_high=>drive_high,segment_drive=>segment_drive1,dp_drive=>dp_drive1);
-    digit2 : entity work.seven_seg port map( clk=>clk, reset=>reset, enable=>enable,number=>number2,dp=>dp2,drive_high=>drive_high,segment_drive=>segment_drive2,dp_drive=>dp_drive2);
-    digit3 : entity work.seven_seg port map( clk=>clk, reset=>reset, enable=>enable,number=>number3,dp=>dp3,drive_high=>drive_high,segment_drive=>segment_drive3,dp_drive=>dp_drive3);
-    digit4 : entity work.seven_seg port map( clk=>clk, reset=>reset, enable=>enable,number=>number4,dp=>dp4,drive_high=>drive_high,segment_drive=>segment_drive4,dp_drive=>dp_drive4);
-    
+    digit_encoder : entity work.seven_seg port map( clk=>clk, number=>number,dp=>dp,drive_high=>drive_high,segment_drive=>segment_drive,dp_drive=>dp_drive);
+
     counter : process(clk)
     begin
-        if reset = '1' then
-            clk_counter <= 0;
-            counter_overflow <= '0';
-        elsif clk'event and clk = '1' then
+        if rising_edge(clk) then
             if clk_counter < N_count_max then
-                counter_overflow <= '0';
                 clk_counter <= clk_counter + 1;
             else
-                counter_overflow <= '1';
                 clk_counter <= 0;
-            end if;
-        end if; 
-    end process;
-    
-    an_multiplex : process(clk)
-    begin
-        if reset = '1' then
-            an_drive_d <= (0 => drive_high, OTHERS => not drive_high);
-        elsif clk'event and clk = '1' then
-            if enable = '1' then
-                if counter_overflow = '1' then
-                    an_drive_d <= ( -- rotating through
-                            3 => an_drive_d(2),
-                            2 => an_drive_d(1),
-                            1 => an_drive_d(0),
-                            0 => an_drive_d(3)
-                            );
+                if an_drive_i < 3 then
+                    an_drive_i <= an_drive_i + 1;
+                else
+                    an_drive_i <= 0;
                 end if;
-                an_drive <= an_drive_d;
-            else
-                an_drive <= (OTHERS => not drive_high);       
             end if;
-        end if;       
+        end if;
     end process;
     
-    seg_multiplex : process(clk)
+    latch_in : process(clk)
     begin
-        --if reset = '1' then
-        --elsif clk'event and clk = '1' then
-            case an_drive_d is
-                when "0001"|"1110" => 
-                    segment_drive <= segment_drive4;
-                    dp_drive <= dp_drive4;
-                when "0010"|"1101" => 
-                    segment_drive <= segment_drive3;
-                    dp_drive <= dp_drive3;
-                when "0100"|"1011" => 
-                    segment_drive <= segment_drive2;
-                    dp_drive <= dp_drive2;
-                when "1000"|"0111" => 
-                    segment_drive <= segment_drive1;
-                    dp_drive <= dp_drive1;
-                when OTHERS =>
-                    segment_drive <= (OTHERS => not drive_high);
-                    dp_drive <= not drive_high;
+        if rising_edge(clk) then
+            -- latch in inputs
+            number1_d <= number1;
+            number2_d <= number2;
+            number3_d <= number3;
+            number4_d <= number4;
+            dp1_d <= dp1;
+            dp2_d <= dp2;
+            dp3_d <= dp3;
+            dp4_d <= dp4;
+            enable_d <= enable;
+            drive_high_d <= drive_high;
+       end if;
+    end process;
+    
+    multiplex : process(clk)
+    begin
+        if rising_edge(clk) then
+            case an_drive_i is
+                -- number1 is most left digit which is MSB in an_drive
+                when 0 => 
+                    number <= number1_d;
+                    dp <= dp1_d;
+                    an_drive_d <= (3 => drive_high_d, OTHERS => not drive_high_d);
+                when 1 => 
+                    number <= number2_d;
+                    dp <= dp2_d;
+                    an_drive_d <= (2 => drive_high_d, OTHERS => not drive_high_d);
+                when 2 => 
+                    number <= number3_d;
+                    dp <= dp3_d;
+                    an_drive_d <= (1 => drive_high_d, OTHERS => not drive_high_d);
+                when 3 => 
+                    number <= number4_d;
+                    dp <= dp4_d;
+                    an_drive_d <= (0 => drive_high_d, OTHERS => not drive_high_d);
             end case;
-        --end if;
-        
+            
+            -- disable anode outputs when not enabled
+            if enable_d = '0' then 
+                an_drive_d <= (OTHERS => not drive_high_d);
+            end if;
+            
+            -- as the digit encoder has 1 delay, we need to delay the output 1 clk here, too
+            an_drive <= an_drive_d;
+        end if;
     end process;
 
-end rtl;
+end compact;
