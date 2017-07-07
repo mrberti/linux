@@ -18,20 +18,14 @@
 -- 
 ----------------------------------------------------------------------------------
 
-
+----------------------------------------------------------------------------------
+-- TX Component ------------------------------------------------------------------
+----------------------------------------------------------------------------------
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
-
--- Uncomment the following library declaration if using
--- arithmetic functions with Signed or Unsigned values
 use IEEE.NUMERIC_STD.ALL;
 
--- Uncomment the following library declaration if instantiating
--- any Xilinx leaf cells in this code.
---library UNISIM;
---use UNISIM.VComponents.all;
-
-entity serial is
+entity serial_tx is
     generic (
         F_clk_in  : integer := 100000000; 
         F_baud    : integer :=    256000;
@@ -40,44 +34,36 @@ entity serial is
         N_stop_bits : integer range 0 to 2 := 1;
         N_parity : integer := 0 -- no implementation yet 
     );
-    Port ( 
+    port ( 
         clk : in std_logic;
         reset : in std_logic;
-        
         data_tx : in std_logic_vector(N_data_bits-1 downto 0);
-        data_rx : out std_logic_vector(N_data_bits-1 downto 0);
         
         kickout : in std_logic;
-        busy : out std_logic;
-        rx_valid : out std_logic;
+        busy : out std_logic := '0';
         
         -- These flags are indicating a failure during transmission
         -- the transceiver needs to be reset then
-        tx_fail : out std_logic;
-        rx_fail : out std_logic;
+        tx_fail : out std_logic := '0';
         
         -- physical pins
-        rx : in std_logic; -- async receive pin
-        tx : out std_logic
+        tx : out std_logic := '0'
         );
         
-end serial;
+end serial_tx;
 
-architecture rtl of serial is
+architecture rtl of serial_tx is
 
-    type state_rx_type is (RX_IDLE, RX_START, RX_SAMPLE, RX_STOP, RX_FAILED);
     type state_tx_type is (TX_IDLE, TX_START, TX_SEND, TX_STOP1, TX_STOP2, TX_FAILED);
     
     constant N_counter_max : integer := F_clk_in / F_baud - 1;
-        
-    signal rx_d : std_logic_vector(1 downto 0);
-    signal data_tx_d,data_rx_d  : std_logic_vector(N_data_bits-1 downto 0);
+
+    signal data_tx_d : std_logic_vector(N_data_bits-1 downto 0) := (OTHERS => '0');
     
-    signal clk_counter_rx, clk_counter_tx : integer range 0 to N_counter_max; --(15 downto 0);
-    signal clk_counter_rx_overflow, clk_counter_tx_overflow, rx_do_sample : std_logic;
-    
-    signal state_rx : state_rx_type;
-    signal state_tx : state_tx_type;
+    signal clk_counter_tx : integer range 0 to N_counter_max := 0; --(15 downto 0);
+    signal clk_counter_tx_overflow, rx_do_sample : std_logic := '0';
+
+    signal state_tx : state_tx_type := TX_IDLE;
     
 begin
     
@@ -100,7 +86,7 @@ begin
     end process;
     
     tx_state_machine : process(clk)
-        variable bit_counter_tx : integer range 0 to N_data_bits;--unsigned(2 downto 0);
+        variable bit_counter_tx : integer range 0 to N_data_bits - 1;
     begin
         if rising_edge(clk) then
             if reset = '1' then
@@ -108,6 +94,7 @@ begin
                 bit_counter_tx := 0;
                 tx <= pol_idle;
                 tx_fail <= '0';
+                busy <= '0';
             else
                 case state_tx is
                     when TX_IDLE  => 
@@ -157,10 +144,58 @@ begin
             end if;
         end if;
     end process;
+end rtl;
+
+----------------------------------------------------------------------------------
+-- RX Component ------------------------------------------------------------------
+----------------------------------------------------------------------------------
+
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
+
+entity serial_rx is
+    generic (
+        F_clk_in  : integer := 100000000; 
+        F_baud    : integer :=    256000;
+        pol_idle  : std_logic := '1'; -- state of the idle pin
+        N_data_bits : integer range 1 to 9 := 8;
+        N_stop_bits : integer range 0 to 2 := 1;
+        N_parity : integer := 0 -- no implementation yet 
+    );
+    Port ( 
+        clk : in std_logic;
+        reset : in std_logic;
+        
+        data_rx : out std_logic_vector(N_data_bits-1 downto 0) := (OTHERS => '0');
+        
+        rx_valid : out std_logic := '0';
+        
+        -- These flags are indicating a failure during transmission
+        -- the transceiver needs to be reset then
+        rx_fail : out std_logic := '0';
+        
+        -- physical pins
+        rx : in std_logic := '0' -- async receive pin
+        );
+        
+end serial_rx;
+
+architecture rtl of serial_rx is
+
+    type state_rx_type is (RX_IDLE, RX_START, RX_SAMPLE, RX_STOP, RX_FAILED);
     
-    ---------------
-    -- RECEIVER----
-    ---------------
+    constant N_counter_max : integer := F_clk_in / F_baud - 1;
+        
+    signal rx_d : std_logic_vector(1 downto 0) := "00";
+    signal data_rx_d  : std_logic_vector(N_data_bits-1 downto 0) := (OTHERS => '0');
+    
+    signal clk_counter_rx : integer range 0 to N_counter_max := 0; --(15 downto 0);
+    signal clk_counter_rx_overflow, rx_do_sample : std_logic := '0';
+    
+    signal state_rx : state_rx_type := RX_IDLE;
+    
+begin
     
     clk_counter_rx_proc : process(clk)
     begin
@@ -254,5 +289,67 @@ begin
     -- copy latched data into outport
     data_rx <= data_rx_d;
 
+end rtl;
+
+----------------------------------------------------------------------------------
+-- TRANSCEIVER Component ---------------------------------------------------------
+----------------------------------------------------------------------------------
+
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
+
+entity serial is
+    generic (
+        F_clk_in  : integer := 100000000; 
+        F_baud    : integer :=    256000;
+        pol_idle  : std_logic := '1'; -- state of the idle pin
+        N_data_bits : integer range 1 to 9 := 8;
+        N_stop_bits : integer range 0 to 2 := 1;
+        N_parity : integer := 0 -- no implementation yet 
+    );
+    Port ( 
+        clk : in std_logic;
+        reset : in std_logic;
+        
+        data_tx : in std_logic_vector(N_data_bits-1 downto 0);
+        data_rx : out std_logic_vector(N_data_bits-1 downto 0);
+        
+        kickout : in std_logic;
+        busy : out std_logic;
+        rx_valid : out std_logic;
+        
+        -- These flags are indicating a failure during transmission
+        -- the transceiver needs to be reset then
+        tx_fail : out std_logic;
+        rx_fail : out std_logic;
+        
+        -- physical pins
+        rx : in std_logic; -- async receive pin
+        tx : out std_logic
+        );
+        
+end serial;
+
+architecture rtl of serial is   
+begin
+
+    -- Create receiver component
+    serial_rx_component : entity work.serial_rx
+    generic map ( 
+        F_baud => F_baud, N_data_bits => N_data_bits, pol_idle => pol_idle, N_stop_bits => N_stop_bits 
+    )
+    port map (
+        clk => clk, reset => reset, data_rx => data_rx, rx_valid => rx_valid, rx_fail => rx_fail, rx => rx
+    );
+    
+    -- Create transmitter component
+    serial_tx_component : entity work.serial_tx
+    generic map ( 
+        F_baud => F_baud, N_data_bits => N_data_bits, pol_idle => pol_idle, N_stop_bits => N_stop_bits 
+    )
+    port map (
+        clk => clk, reset => reset, data_tx => data_tx, kickout => kickout, busy => busy, tx_fail => tx_fail, tx => tx
+    );
 
 end rtl;
