@@ -38,8 +38,8 @@ entity spi_master_phy is
         -- SPI MASTER CONTROL SIGNALS
         kickout : in std_logic := '0'; -- Latches in data input signals and begins SPI transmit, active high
 
-        cpol  : in std_logic := '0'; -- 1 => idle high
-        cpha  : in std_logic := '0'; -- 1 => sample on second flank after cs low
+        cpol  : in std_logic := '1'; -- 1 => idle high
+        cpha  : in std_logic := '1'; -- 1 => sample on second flank after cs low
         slave_addr : in std_logic_vector ( N_slaves - 1 downto 0 ) := (others => '0');
 
         data_tx : in std_logic_vector (N_data_bits-1 downto 0) := (others => '0');
@@ -116,6 +116,7 @@ begin
         
             --sampling miso
             miso_d <= miso;
+            kickout_d <= kickout;
         
             case spi_state is 
                 when SPI_IDLE =>
@@ -126,7 +127,7 @@ begin
                     -- while idling, constantly latch in data
                     cpol_d <= cpol;
                     cpha_d <= cpha;
-                    kickout_d <= kickout;
+                    
                     data_tx_d <= data_tx;                    
                     address_d <= slave_addr;
                     
@@ -145,7 +146,6 @@ begin
                     -- set signals
                     busy <= '1';
                     rx_valid <= '0';
-                    kickout_d <= '0';
                     cs(to_integer(unsigned(address_d))) <= '0';
                     
                     mosi <= data_tx_d( data_rx_d'length-1 ); -- MSB out first
@@ -172,10 +172,20 @@ begin
                     -- write data to output
                     data_rx <= data_rx_d;
                     rx_valid <= '1';
-                    cs <= (OTHERS => '1');
-                    busy <= '0';                       
-                    -- Finished sending, so go back to idling mode
-                    spi_state <= SPI_IDLE;
+                 
+                    if kickout_d = '1' then
+                        -- continue sending but latch in tx_data before
+                        data_tx_d <= data_tx;
+                        spi_state <= SPI_TRANSCEIVING;
+                        if cpha_d = '1' then
+                            bit_counter <= N_data_bits;
+                        else
+                            bit_counter <= N_data_bits-1;
+                        end if;
+                    else 
+                        -- Finished sending, so go back to idling mode
+                        spi_state <= SPI_IDLE;
+                    end if;
                 when others =>
                     -- should not appear, do nothing
             end case;

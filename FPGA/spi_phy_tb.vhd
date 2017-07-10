@@ -106,7 +106,7 @@ BEGIN
     kickout <= '1';
     WAIT FOR 100 ns;
     --slave_addr <= "10";
-    WAIT FOR 100 ns;
+    WAIT FOR 1000 ns;
     kickout <= '0';
 
     -- endless wait...
