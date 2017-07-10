@@ -38,27 +38,6 @@ end spi_phy_tb;
 ARCHITECTURE Behavioral OF spi_phy_tb IS
     
     CONSTANT N_slaves_tb : natural := 2;
-
-    COMPONENT spi_phy
-    GENERIC ( N_slaves : natural;
-              F_clk_in : natural;
-              F_clk_out : natural
-            );
-    PORT ( 
-            clk_in : in STD_LOGIC;
-            reset : in STD_LOGIC;
-            kickout : in STD_LOGIC;
-            data_send : in STD_LOGIC_VECTOR (0 to 7); -- MSB first
-            slave_addr : in STD_LOGIC_VECTOR ( N_slaves - 1 downto 0 );
-            data_rec : out STD_LOGIC_VECTOR;
-            data_rec_valid : out STD_LOGIC;
-            busy : out STD_LOGIC;
-            clk_out : out STD_LOGIC;
-            cs : out STD_LOGIC_VECTOR;
-            mosi : out STD_LOGIC;
-            miso : in STD_LOGIC
-         ); 
-    END COMPONENT;
     
     SIGNAL clk_in : STD_LOGIC := '0';
     SIGNAL reset : STD_LOGIC := '0';
@@ -76,22 +55,22 @@ ARCHITECTURE Behavioral OF spi_phy_tb IS
     
 BEGIN
 
-spi_DUT : spi_phy
+spi_DUT : entity work.spi_master_phy
 GENERIC MAP(
     N_slaves => N_slaves_tb,
     F_clk_in => 100,
-    F_clk_out => 50
+    F_clk_out => 10
 )
 PORT MAP(
-    clk_in  => clk_in,
+    clk  => clk_in,
     reset  => reset,
     kickout  => kickout,
-    data_send  => data_send,
+    data_tx  => data_send,
     slave_addr  => slave_addr,
-    data_rec  => data_rec,
-    data_rec_valid  => data_rec_valid,
+    data_rx  => data_rec,
+    rx_valid  => data_rec_valid,
     busy  => busy,
-    clk_out  => clk_out,
+    sck  => clk_out,
     cs  => cs,
     mosi  => mosi,
     miso =>  miso
@@ -111,7 +90,7 @@ BEGIN
     data_send <= x"55";
     kickout <= '0';
     slave_addr <= "00";
-    miso <= '0';
+    --miso <= '0';
     WAIT FOR 20 ns;
     reset <= '1';
     WAIT FOR 20 ns;
@@ -123,14 +102,17 @@ BEGIN
     slave_addr <= "01";
     WAIT FOR 20 ns;
     data_send <= x"aa";
-    WAIT FOR 200 ns;
+    WAIT FOR 2000 ns;
     kickout <= '1';
     WAIT FOR 100 ns;
     --slave_addr <= "10";
-   
-    
+    WAIT FOR 100 ns;
+    kickout <= '0';
+
     -- endless wait...
     WAIT;
 END PROCESS;
+
+miso <= mosi;
 
 END Behavioral;

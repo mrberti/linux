@@ -21,136 +21,165 @@
 
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
 
--- Uncomment the following library declaration if using
--- arithmetic functions with Signed or Unsigned values
-USE IEEE.NUMERIC_STD.ALL;
+entity spi_master_phy is
+    generic ( 
+        N_slaves    : natural := 1;
+        F_clk_in    : natural := 100;
+        F_clk_out   : natural :=  1;
+        N_data_bits : natural range 1 to 10 := 8
+    );
+    port ( 
+        -- GENERAL SIGNALS
+        clk : in std_logic := '0';
+        reset : in std_logic := '0';
+        
+        -- SPI MASTER CONTROL SIGNALS
+        kickout : in std_logic := '0'; -- Latches in data input signals and begins SPI transmit, active high
 
--- Uncomment the following library declaration if instantiating
--- any Xilinx leaf cells in this code.
---library UNISIM;
---use UNISIM.VComponents.all;
+        cpol  : in std_logic := '0'; -- 1 => idle high
+        cpha  : in std_logic := '0'; -- 1 => sample on second flank after cs low
+        slave_addr : in std_logic_vector ( N_slaves - 1 downto 0 ) := (others => '0');
 
-entity spi_phy is
-    Generic ( N_slaves : natural := 2;
-              F_clk_in : natural := 100;
-              F_clk_out : natural := 25);
-    Port ( 
-            -- GENERAL SIGNALS
-            clk : in STD_LOGIC;
-            reset : in STD_LOGIC := '0';
+        data_tx : in std_logic_vector (N_data_bits-1 downto 0) := (others => '0');
+        data_rx : out std_logic_vector (N_data_bits-1 downto 0) := (others => '0');
+       
+        -- STATUS OUTPUT SIGNALS
+        rx_valid : out std_logic := '0';
+        busy : out std_logic := '0';
+       
+        -- SPI PINS
+        sck : out std_logic := '0';
+        cs : out std_logic_vector (N_slaves-1 downto 0) := (others => '1');
+        mosi : out std_logic := 'Z';
+        miso : in std_logic := 'Z'
+     );
             
-            -- SPI MASTER CONTROL SIGNALS
-            kickout : in STD_LOGIC := '0'; -- Lathes in data input signals and begins SPI transmit, active high
-                                   
-            -- DATA INPUT SIGNALS
-            data_send : in STD_LOGIC_VECTOR (7 downto 0);
-            slave_addr : in STD_LOGIC_VECTOR ( N_slaves - 1 downto 0 ) := (OTHERS => '0');
-           
-            -- DATA OUTPUT SIGNALS
-            data_rec : out STD_LOGIC_VECTOR (7 downto 0);
-           
-            -- STATUS OUTPUT SIGNALS
-            data_rec_valid : out STD_LOGIC;
-            busy : out STD_LOGIC;
-           
-            -- SPI PINS
-            sck : out STD_LOGIC;
-            cs : out STD_LOGIC_VECTOR (N_slaves-1 downto 0);
-            mosi : out STD_LOGIC;
-            miso : in STD_LOGIC := '1'
-         );
-            
-end spi_phy;
+end spi_master_phy;
 
-architecture rtl of spi_phy is
+architecture rtl of spi_master_phy is
 
-    TYPE spi_state_type IS (SPI_IDLE, SPI_SENDING, SPI_FINISH);
+    type spi_state_type IS (SPI_IDLE, SPI_TRANSCEIVING, SPI_FINISH);
 
-    CONSTANT N_clk_div : INTEGER := F_clk_in / F_clk_out;
+    constant N_clk_div : integer := F_clk_in / F_clk_out;
     
-    SIGNAL clk_counter : UNSIGNED( 9 downto 0)  := (OTHERS => '0');
-    SIGNAL bit_counter : UNSIGNED( 3 downto 0 ) := (OTHERS => '0');
+    signal clk_counter : integer range 0 to N_clk_div - 1 := 0;
+    signal bit_counter : natural range 0 to N_data_bits := N_data_bits - 1;
     
-    SIGNAL spi_state, spi_state_next : spi_state_type := SPI_IDLE;
-    SIGNAL data_in_latch : STD_LOGIC_VECTOR( 0 to 7 ) := (OTHERS => '0'); -- Send out MSB first so turnaround bit order
-    SIGNAL address_latch : STD_LOGIC_VECTOR ( N_slaves - 1 downto 0 ) := (OTHERS => '0');
+    signal spi_state : spi_state_type := SPI_IDLE;
+    
+    signal flank_1, flank_2 : std_logic := '0';
+    signal do_sample : std_logic := '0';
+    
+    -- latches
+    signal cpol_d : std_logic := cpol;
+    signal cpha_d : std_logic := cpha;
+    signal kickout_d : std_logic := '0';
+    signal miso_d : std_logic := '0';
+    signal data_rx_d : std_logic_vector( N_data_bits-1 downto 0 ) := (others => '0');
+    signal data_tx_d : std_logic_vector( N_data_bits-1 downto 0 ) := (others => '0');
+    signal address_d : std_logic_vector( N_slaves-1 downto 0 )    := (others => '0');
+    
        
 begin
 
-    spi_state_machine : PROCESS (clk)
-    variable cs_bit : integer;
-    BEGIN
-        IF rising_edge(clk) THEN
-            IF (reset = '1') THEN
-                spi_state <= SPI_IDLE;
-                busy <= '0';
-                bit_counter <= (OTHERS => '0');
-                data_rec    <= (OTHERS => '0');
-                data_rec_valid <= '0';
-                cs <= (OTHERS => '1');
-            ELSE
-                CASE spi_state IS 
-                    WHEN SPI_IDLE =>
-                        -- set status out signals
-                        busy <= '0';
-                        -- set SPI pins to default state
-                        mosi <= '1';
-                        cs <= (OTHERS => '1');
-                        sck <= '1';
-                        -- while idling, constantly latch in data
-                        data_in_latch <= data_send;
-                        address_latch <= slave_addr;
-                        -- listen for kickout and advance state
-                        IF kickout = '1' THEN
-                            spi_state <= SPI_SENDING; 
-                        END IF;
-                    WHEN SPI_SENDING =>
-                        -- set status out signals
-                        busy <= '1';
-                        -- set static signals
-                        --cs <= address_latch;
-                        cs_bit := to_integer(unsigned(address_latch));
-                        --cs <= (cs_bit => '0', OTHERS => '1');
-                        cs(cs_bit) <= '0';
-                        IF clk_counter = N_clk_div/2-1 THEN -- falling SPI clock => MOSI shift
-                            IF  (bit_counter < 8) THEN
-                                sck <= '0';
-                                mosi <= data_in_latch( to_integer(bit_counter(2 downto 0)) );
-                                bit_counter <= bit_counter + 1;
-                            ELSE
-                                bit_counter <= (OTHERS => '0');
-                                spi_state <= SPI_IDLE;
-                            END IF;
-                        ELSIF (clk_counter = N_clk_div-1) THEN -- rising SPI clock => MISO sample
-                            -- TODO!!
-                            sck <= '1';
-                        END IF;
-                    WHEN SPI_FINISH =>
-                        -- currentlz unused state
-                        busy <= '0';
-                        cs <= (OTHERS => '1');
-                        -- Finished sending, so go back to sleep
-                        spi_state <= SPI_IDLE;
-                    WHEN OTHERS =>
-                END CASE;
-            END IF;
-        END IF;
-    END PROCESS;
-    
-    clock_divider : PROCESS( clk )
-    BEGIN
-        IF rising_edge(clk) THEN
-            IF (reset = '1' OR spi_state = SPI_IDLE OR spi_state = SPI_FINISH) THEN
-                clk_counter <= (OTHERS => '0');
-            ELSIF (spi_state = SPI_SENDING) THEN
-                IF (clk_counter = N_clk_div-1) THEN
-                    clk_counter <= (OTHERS => '0');
-                ELSE
+    clock_divider : process( clk )
+    begin
+        if rising_edge(clk) then
+            if spi_state = SPI_TRANSCEIVING then
+                if clk_counter = N_clk_div/2-1 then
                     clk_counter <= clk_counter + 1;
-                END IF;
-             END IF;
-        END IF;
-    END PROCESS;        
+                    flank_1 <= '1';
+                    flank_2 <= '0';
+                elsif clk_counter = N_clk_div-1 then
+                    clk_counter <= 0;
+                    flank_1 <= '0';
+                    flank_2 <= '1';
+                else
+                    clk_counter <= clk_counter + 1;
+                    flank_1 <= '0';
+                    flank_2 <= '0';
+                end if;
+             else
+                clk_counter <= 0;
+                flank_1 <= '0';
+                flank_2 <= '0';
+             end if;
+        end if;
+    end process;
 
-END rtl;
+    spi_state_machine : process (clk)
+        variable v : std_logic := '0';
+    begin
+        if rising_edge(clk) then
+        
+            --sampling miso
+            miso_d <= miso;
+        
+            case spi_state is 
+                when SPI_IDLE =>
+                    busy <= '0';
+                    mosi <= 'Z';
+                    cs <= (OTHERS => '1');
+                    sck <= cpol_d;
+                    -- while idling, constantly latch in data
+                    cpol_d <= cpol;
+                    cpha_d <= cpha;
+                    kickout_d <= kickout;
+                    data_tx_d <= data_tx;                    
+                    address_d <= slave_addr;
+                    
+                    if cpha_d = '1' then
+                        bit_counter <= N_data_bits;
+                    else
+                        bit_counter <= N_data_bits-1;
+                    end if;
+                    
+                    -- listen for kickout and advance state
+                    if kickout_d = '1' then
+                        spi_state <= SPI_TRANSCEIVING;    
+                    end if;
+                    
+                when SPI_TRANSCEIVING =>
+                    -- set signals
+                    busy <= '1';
+                    rx_valid <= '0';
+                    kickout_d <= '0';
+                    cs(to_integer(unsigned(address_d))) <= '0';
+                    
+                    mosi <= data_tx_d( data_rx_d'length-1 ); -- MSB out first
+                    
+                    if flank_1 = '1' or flank_2 = '1' then
+                        sck <= (not cpol_d and flank_1) xor (cpol_d and flank_2);
+                        
+                        if (flank_1 = '1' and cpha_d = '1') or (flank_2 = '1' and cpha_d = '0') then
+                            bit_counter <= bit_counter - 1;
+                            if bit_counter > 0 then
+                                if bit_counter < N_data_bits then
+                                    data_tx_d <= data_tx_d( data_tx_d'length - 2 downto 0 ) & '0';
+                                end if;
+                            else
+                                sck <= cpol_d;
+                                spi_state <= SPI_FINISH;
+                            end if;
+                        elsif (flank_1 = '1' and cpha_d = '0') or (flank_2 = '1' and cpha_d = '1') then
+                            data_rx_d <= data_rx_d(data_rx_d'length-2 downto 0) & miso_d;
+                        end if;
+                    end if;
+                    
+                when SPI_FINISH =>
+                    -- write data to output
+                    data_rx <= data_rx_d;
+                    rx_valid <= '1';
+                    cs <= (OTHERS => '1');
+                    busy <= '0';                       
+                    -- Finished sending, so go back to idling mode
+                    spi_state <= SPI_IDLE;
+                when others =>
+                    -- should not appear, do nothing
+            end case;
+        end if;
+    end process;    
+
+end rtl;

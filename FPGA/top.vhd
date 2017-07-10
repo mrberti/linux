@@ -78,6 +78,7 @@ architecture rtl of top is
     
     -- LEDs
     alias led_blinky : STD_LOGIC is led(0);
+    alias led_blinky2 : STD_LOGIC is led(1);
     
     ----------------------------------------------------------
     -- SIGNAL DECLARATIONS
@@ -106,6 +107,17 @@ begin
         clk_out => led_blinky
     );
     
+    blinky2 : entity clk_div_advanced
+    generic map (
+        F_clk => 100000000,
+        F_cycle =>       1,
+        N_counter_size => 32
+    )
+    port map (
+        clk => clk,
+        q_50 => led_blinky2
+    );
+    
     seven_segment : entity seven_seg_4
     generic map(
         F_cycle => 60*4
@@ -131,7 +143,7 @@ begin
         an_drive => an
     );
     
-    spi_PMOD_oled : entity spi_phy
+    spi_PMOD_oled : entity spi_master_phy
     GENERIC MAP(
         N_slaves => 1,
         F_clk_in => 100,
@@ -141,7 +153,7 @@ begin
         clk  => clk,
         reset  => reset,
         kickout  => btnR,
-        data_send  => sw(15 downto 8),
+        data_tx  => sw(15 downto 8),
         slave_addr  => (OTHERS => '0'),
         --data_rec  => data_rec,
         --data_rec_valid  => data_rec_valid,
