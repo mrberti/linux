@@ -47,7 +47,8 @@ entity top is
         btnD : in STD_LOGIC;
         
         -- PMOD OLEDrgb
-        CS, MOSI, SCK, D_C, RES, VCCEN, PMODEN : out STD_LOGIC; 
+        CS, MOSI, SCK, D_C, RES, VCCEN, PMODEN : out STD_LOGIC;
+        MISO : in STD_LOGIC;
         
         -- RS232
         RsRx : in STD_LOGIC;
@@ -90,6 +91,20 @@ architecture rtl of top is
     
     -- global reset signal
     signal reset: std_logic := '1';
+    
+    -- spi slave signals
+    signal data_tx_slave0, data_rx_slave0 : std_logic_vector(7 downto 0) := (others => '0');
+    signal data_tx_slave1, data_rx_slave1 : std_logic_vector(7 downto 0) := (others => '0');
+    signal busy_slave0 : std_logic := '0';
+    signal busy_slave1 : std_logic := '0';
+    signal rx_valid_slave0 : std_logic := '0';
+    signal rx_valid_slave1 : std_logic := '0';
+    -- spi intermediate signals
+    signal sck_d : std_logic := '0';
+    signal cs_d : std_logic := '0';
+    signal mosi_d : std_logic := '0';
+    signal miso_d : std_logic := '0';
+    
 
 begin
     
@@ -151,17 +166,28 @@ begin
     )
     PORT MAP(
         clk  => clk,
-        reset  => reset,
         kickout  => btnR,
         data_tx  => sw(15 downto 8),
         slave_addr  => (OTHERS => '0'),
-        --data_rec  => data_rec,
-        --data_rec_valid  => data_rec_valid,
-        --busy  => busy,
-        sck  => SCK,
-        cs(0)  => CS, --, OTHERS => '0'),
-        mosi  => MOSI,
+        data_rx  => open,
+        rx_valid  => open,
+        busy  => open,
+        sck  => sck_d,
+        cs(0)  => CS_d,
+        mosi  => MOSI_d,
         miso =>  '1'
+    );
+    
+    spi_slave_DUT0 : entity work.spi_slave_phy(rtl)
+    PORT MAP(
+        clk  => clk,
+        data_tx  => data_tx_slave0,
+        data_rx  => data_rx_slave0,
+        rx_valid  => rx_valid_slave0,
+        sck  => sck_d,
+        cs  => CS_d,
+        mosi  => mosi_d,
+        miso =>  miso_d
     );
     
     rs232_serial : entity work.serial
@@ -216,5 +242,9 @@ begin
             end if;
         end if;
     end process;    
+    
+    sck <= sck_d;
+    mosi <= mosi_d;
+    cs <= cs_d;
     
 end rtl;
