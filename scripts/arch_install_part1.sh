@@ -2,7 +2,7 @@
 
 ## CONFIGURE USING LIVE IMAGE ##
 # set german keyboard layout
-loadkeys de-latin-nodeadkeys
+loadkeys de-latin1-nodeadkeys
 
 # update the system clock
 timedatectl set-net true
@@ -22,6 +22,7 @@ pacstrap /mnt base base-devel
 
 # Generate fstab file
 genfstab -U /mnt >> /mnt/etc/fstab
+# Check the resulting file in /mnt/etc/fstab
 
 wget http://raw.githubusercontent.com/mrberti/linux/master/scripts/arch_install_part2.sh /mnt/root/arch_install_part2.sh
 

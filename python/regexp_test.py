@@ -1,3 +1,4 @@
+#! /bin/python
 import re
 
 file_name = 'test.csv'

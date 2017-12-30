@@ -1,7 +1,7 @@
 clear all;
 close all;
-N_x = 50;
-N_y = 50;%N_x;
+N_x = 25;
+N_y = 25;%N_x;
 
 A = round(rand(N_y,N_x)-0.0);
 A = A+min(min(A));
@@ -36,6 +36,6 @@ while 1
   end
   A = A_new;
   imshow(A);
-  sleep(0.001);
+  pause(0.01);
 end
 disp 'end'

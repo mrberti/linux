@@ -125,6 +125,11 @@ if [ -f /etc/bash_completion ] && ! shopt -oq posix; then
     . /etc/bash_completion
 fi
 
+## include further definitions which are specific to the machine and ignored by git
+if [ -f ~/.bashrc_local ]; then
+    . ~/.bashrc_local
+fi
+
 ## Set display variable for xserver
 #function get_xserver ()
 #{
@@ -150,6 +155,7 @@ fi
 #
 #export DISPLAY
 
-if [ -z "$DISPLAY" ] ; then
-	export DISPLAY=":0.0"
-fi
+## Use this to set display variable in cygwin
+#if [ -z "$DISPLAY" ] ; then
+#	export DISPLAY=":0.0"
+#fi

@@ -1,16 +1,18 @@
 #!/bin/bash
 
 ## CONFIGURE ARCH LINUX AFTER FRESH INSTALL
+# some standard stuff
+pacman -S python wget
 
 # install some stuff used by me often
 pacman -S sudo
 pacman -S vim
 pacman -S git
-pacman -S openssh
+#pacman -S openssh
 
 # download some fonts
 #pacman -S terminus-font
-pacman -S 
+#pacman -S 
 
 # install some useful stuff
 #pacman -S net-tools pkgfile base-devel
@@ -25,6 +27,9 @@ pacman -S
 # install xfce desktop environment
 #pacman -S xfce4 xfce4-goodies
 #startxfce4
+
+# some gui stuff
+#pacman -S xarchiver gthumb gvim gimp
 
 # INSTALL BROWSERS
 # install firefox
