@@ -1,4 +1,5 @@
 /*
+!.bashrc_local
 !.bash_aliases
 !.bashrc
 !.gitconfig
@@ -20,10 +21,4 @@
 !/C
 !/FPGA
 !/arduino
-*.exe
-C/*
-!/C/*.h
-!/C/*.c
-!/C/*.hpp
-!/C/*.cpp
-!/C/*.txt
+#*.exe
