@@ -31,8 +31,3 @@ if [ -d "$HOME/python" ] ; then
     PATH="$HOME/python:$PATH"
 fi
 
-#stty -ixon
-
-# Set locale definitions
-LANG=de_DE.UTF-8
-#LC_ALL=C

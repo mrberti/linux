@@ -159,3 +159,7 @@ fi
 #if [ -z "$DISPLAY" ] ; then
 #	export DISPLAY=":0.0"
 #fi
+
+#LANG=de_DE.UTF-8
+#LANG=en_EN.UTF-8
+
